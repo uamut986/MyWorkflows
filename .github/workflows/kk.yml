@@ -1,0 +1,48 @@
+name: gost-bore-proxy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240   # 4 hours
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget curl
+
+      - name: Download gost
+        run: |
+          GOST_VERSION=3.0.0
+          wget https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_amd64.tar.gz
+          tar -xzf gost_${GOST_VERSION}_linux_amd64.tar.gz
+          chmod +x gost
+
+      - name: Download bore
+        run: |
+          wget https://github.com/ekzhang/bore/releases/download/v0.4.0/bore-v0.4.0-x86_64-unknown-linux-musl.tar.gz
+          tar -xzf bore-v0.4.0-x86_64-unknown-linux-musl.tar.gz
+          chmod +x bore
+
+      - name: Start gost proxy
+        run: |
+          nohup ./gost \
+            -L=http://:8080 \
+            -L=socks5://:1080 \
+            > gost.log 2>&1 &
+          sleep 3
+
+      - name: Expose HTTP proxy via bore.pub
+        run: |
+          echo "===================================="
+          echo " PUBLIC PROXY INFO (HTTP) "
+          echo "===================================="
+          ./bore local 8080 --to bore.pub
+
+      # Optional: expose SOCKS5 instead (comment HTTP step above)
+      # - name: Expose SOCKS5 proxy via bore.pub
+      #   run: |
+      #     ./bore local 1080 --to bore.pub
